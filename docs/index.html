@@ -26,6 +26,8 @@ h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: .2px; }
   font: 12px/1 inherit; padding: 2px 4px; cursor: pointer; white-space: nowrap; border-radius: 4px; }
 .ticks button.on { color: var(--text); background: #222a31; }
 .ticks button.photo { color: var(--c-pano); }
+.slider-wrap.stagger { padding-bottom: 38px; }
+.ticks button.low { top: 16px; }
 .ticks button:first-child { transform: none; }
 .ticks button:last-child { transform: translateX(-100%); }
 a.ext { color: var(--muted); font-size: 12px; text-decoration: none; margin-right: 8px; }
@@ -74,7 +76,11 @@ label.inl input[type=range] { width: 110px; }
 .stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .stats td { padding: 1px 10px 1px 0; }
 .stats td:first-child { color: var(--text); }
-#loading { position: fixed; inset: auto 16px 16px auto; background: #1d2227; border: 1px solid var(--line); border-radius: 8px;
+/* the timeline stays pinned to the bottom while the views scroll */
+.card.dock { position: fixed; left: 16px; right: 16px; bottom: 8px; margin: 0; z-index: 10;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom)); background: rgba(20, 23, 26, .94);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 -6px 24px rgba(0, 0, 0, .45); }
+#loading { position: fixed; inset: 16px 16px auto auto; z-index: 11; background: #1d2227; border: 1px solid var(--line); border-radius: 8px;
   padding: 8px 12px; font-size: 13px; color: var(--muted); }
 #loading .bar { height: 3px; background: #2b3238; border-radius: 2px; margin-top: 6px; overflow: hidden; }
 #loading .bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
@@ -91,7 +97,7 @@ kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line); 
   <span class="sub" id="sub">загрузка…</span>
 </header>
 
-<div class="card">
+<div class="card dock" id="dock">
   <div class="tl">
     <button class="btn play" id="play" title="Проиграть (пробел)">▶</button>
     <div class="slider-wrap">
@@ -624,6 +630,19 @@ function togglePlay(on = !playing) {
   if (on) { if (st.mode !== "blend") { st.mode = "blend"; syncControls(); } last = 0; requestAnimationFrame(tick); } else saveState();
 }
 
+// full dates when they fit, "авг 23" on narrow screens so the labels don't run into each other
+const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+function fitTicks() {
+  const el = $("#ticks"), room = el.clientWidth / Math.max(1, N - 1), stagger = room < 80;
+  el.parentElement.classList.toggle("stagger", stagger);  // phones: every other label one row lower
+  el.querySelectorAll("button").forEach((b, k) => {
+    const [, m, y] = TL[k].label.split(".");
+    b.textContent = room < 110 ? `${MONTHS[+m - 1]} ${y.slice(2)}` : TL[k].label;
+    b.title = TL[k].label;
+    b.classList.toggle("low", stagger && k % 2 === 1);
+  });
+}
+
 function wire() {
   const d = TL;
   const ticks = $("#ticks");
@@ -638,6 +657,10 @@ function wire() {
     for (const sel of ["#ca", "#cb"]) $(sel).add(new Option(x.label, k));
   });
   ND.forEach((x, k) => $("#nd").add(new Option(x.kind === "photo" ? `${x.label} (рентген)` : x.label, k)));
+  // keep the page's end reachable above the pinned timeline
+  const pad = () => { document.body.style.paddingBottom = $("#dock").offsetHeight + 16 + "px"; };
+  fitTicks(); pad();
+  window.addEventListener("resize", () => { fitTicks(); pad(); });
   $("#t").max = N - 1;
   $("#t").addEventListener("input", (e) => { togglePlay(false); setT(+e.target.value); });
   $("#t").addEventListener("change", saveState);
