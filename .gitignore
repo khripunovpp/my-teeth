@@ -1,0 +1,14 @@
+# raw scans and everything derived on the way: only docs/ goes public
+*.zip
+*.dcm
+work/
+.venv/
+__pycache__/
+
+# source images and reports lying next to the script
+/*.png
+/*.jpg
+/*.jpeg
+/*.pdf
+
+.DS_Store

@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Зубы: динамика КТ</title>
+<style>
+:root {
+  --bg: #0c0e10; --panel: #14171a; --line: #252a2f; --text: #e6e8ea; --muted: #8a939c;
+  --accent: #4fc3b0; --a: #e256d8; --b: #63e06c;
+  --c-axial: #f2b84b; --c-coronal: #4fc3f7; --c-sagittal: #f06292; --c-pano: #9ccc65;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--text); }
+body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { padding: 14px 16px 4px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+.sub { color: var(--muted); font-size: 13px; }
+.card { margin: 8px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.tl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; }
+.tl .slider-wrap { position: relative; padding-bottom: 22px; }
+.tl input[type=range] { width: 100%; margin: 0; }
+.ticks { position: absolute; left: 8px; right: 8px; top: 22px; height: 18px; }
+.ticks button { position: absolute; transform: translateX(-50%); background: none; border: 0; color: var(--muted);
+  font: 12px/1 inherit; padding: 2px 4px; cursor: pointer; white-space: nowrap; border-radius: 4px; }
+.ticks button.on { color: var(--text); background: #222a31; }
+.ticks button.photo { color: var(--c-pano); }
+.ticks button:first-child { transform: none; }
+.ticks button:last-child { transform: translateX(-100%); }
+a.ext { color: var(--muted); font-size: 12px; text-decoration: none; margin-right: 8px; }
+.seg.sm button { padding: 2px 9px; font-size: 12px; }
+.ph .seg { margin-left: 6px; }
+.ctl.off { opacity: .35; pointer-events: none; }
+a.ext:hover { color: var(--text); }
+.now { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.now b { color: var(--text); font-weight: 600; }
+button.btn, select { background: #1d2227; color: var(--text); border: 1px solid var(--line); border-radius: 7px;
+  padding: 5px 10px; font: inherit; cursor: pointer; }
+button.btn:hover { border-color: #3a424a; }
+button.play { width: 38px; height: 34px; font-size: 15px; padding: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { background: transparent; color: var(--muted); border: 0; padding: 5px 11px; cursor: pointer; font: inherit; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: #24303a; color: var(--text); }
+label.inl { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+label.inl input[type=range] { width: 110px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.chip i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 4px 16px 8px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px 10px; min-width: 0;
+  display: flex; flex-direction: column; gap: 6px; }
+.panel.wide { grid-column: 1 / -1; }
+.panel.max { grid-column: 1 / -1; order: -1; }
+.ph { display: flex; align-items: baseline; gap: 8px; }
+.ph h2 { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.ph h2 i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.ph .hint { color: var(--muted); font-size: 12px; }
+.ph .grow { flex: 1; }
+.ph .ico { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 2px; }
+.cv { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+.cv canvas { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: none; }
+.cv .o { position: absolute; font: 11px/1 ui-monospace, Menlo, monospace; color: rgba(255,255,255,.55); pointer-events: none; }
+.o.l { left: 6px; top: 50%; } .o.r { right: 6px; top: 50%; } .o.t { top: 6px; left: 50%; } .o.b { bottom: 6px; left: 50%; }
+.o.date { top: 6px; left: 8px; color: rgba(255,255,255,.8); }
+.ctl { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.ctl input { width: 100%; }
+.ctl output { font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+.anchor { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; }
+.anchor p { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+.anchor p b { color: var(--text); font-weight: 600; }
+.nudge { display: grid; grid-template-columns: repeat(3, 38px); grid-template-rows: repeat(3, 32px); gap: 4px; }
+.nudge button { padding: 0; }
+.stats { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats td { padding: 1px 10px 1px 0; }
+.stats td:first-child { color: var(--text); }
+#loading { position: fixed; inset: auto 16px 16px auto; background: #1d2227; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; font-size: 13px; color: var(--muted); }
+#loading .bar { height: 3px; background: #2b3238; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+#loading .bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--muted); }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .anchor { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Зубы: динамика по КТ</h1>
+  <span class="sub" id="sub">загрузка…</span>
+</header>
+
+<div class="card">
+  <div class="tl">
+    <button class="btn play" id="play" title="Проиграть (пробел)">▶</button>
+    <div class="slider-wrap">
+      <input type="range" id="t" min="0" max="1" step="0.01" value="0">
+      <div class="ticks" id="ticks"></div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:4px">
+    <span class="now" id="now"></span>
+  </div>
+</div>
+
+<div class="card row">
+  <span class="seg" id="mode">
+    <button data-v="blend" class="on" title="Ползунок плавно переводит один скан в другой">Плавно</button>
+    <button data-v="compare" title="Две даты одним кадром: цвет = где сдвинулось">Сравнить 2 даты</button>
+  </span>
+  <span id="cmp" class="row" hidden style="gap:8px">
+    <span class="chip"><i style="background:var(--a)"></i><select id="ca"></select></span>
+    <span class="chip"><i style="background:var(--b)"></i><select id="cb"></select></span>
+    <span class="chip">белое = на месте</span>
+  </span>
+  <span class="seg" id="proj">
+    <button data-v="mip" class="on" title="Самое плотное по лучу: зубы, металл">Плотное (MIP)</button>
+    <button data-v="avg" title="Среднее по лучу: как рентген">Как рентген</button>
+  </span>
+  <span class="seg" id="preset">
+    <button data-v="teeth">Зубы</button>
+    <button data-v="bone">Кость</button>
+    <button data-v="all">Всё</button>
+  </span>
+  <label class="inl">Чёрный <input type="range" id="lo" min="0" max="254" value="40"></label>
+  <label class="inl">Белый <input type="range" id="hi" min="1" max="255" value="230"></label>
+  <label class="inl"><input type="checkbox" id="lines" checked> Линии срезов</label>
+  <button class="btn" id="reset" title="Вернуть исходные срезы">Сбросить виды</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="card anchor">
+  <div>
+    <p><b>Якорь — нижний край нижней челюсти</b> (кость ниже корней зубов). Брекеты двигают зубы, но не эту кость,
+      поэтому все сканы автоматически совмещены по ней в 3D: челюсть стоит на месте, двигаются только зубы.</p>
+    <p>Верхняя челюсть целиком есть только в скане 2023 года, в остальных видны лишь кончики верхних зубов,
+      поэтому сравнивать по ним нельзя.</p>
+    <p>Если какой-то скан всё равно чуть «прыгает», подвинь его вручную. Удобнее делать это в режиме
+      «Сравнить 2 даты»: когда кость внизу станет белой, а не цветной, скан совмещён. Подстройка сохраняется в этом браузере.</p>
+    <table class="stats" id="stats"></table>
+  </div>
+  <div>
+    <div class="row" style="gap:10px; margin-bottom:8px">
+      <span class="chip">Скан</span><select id="nd"></select>
+      <button class="btn" id="nreset">Сбросить</button>
+    </div>
+    <div class="row" style="align-items:flex-start; gap:16px">
+      <div>
+        <div class="chip" style="margin-bottom:4px">влево/вправо · вперёд/назад</div>
+        <div class="nudge">
+          <span></span><button class="btn" data-d="0,-1,0" title="вперёд">↑</button><span></span>
+          <button class="btn" data-d="-1,0,0" title="вправо (у пациента)">←</button><span></span><button class="btn" data-d="1,0,0" title="влево (у пациента)">→</button>
+          <span></span><button class="btn" data-d="0,1,0" title="назад">↓</button><span></span>
+        </div>
+      </div>
+      <div>
+        <div class="chip" style="margin-bottom:4px">вверх/вниз</div>
+        <div class="nudge" style="grid-template-columns:38px">
+          <button class="btn" data-d="0,0,1" title="вверх">⤒</button>
+          <span></span>
+          <button class="btn" data-d="0,0,-1" title="вниз">⤓</button>
+        </div>
+      </div>
+    </div>
+    <div class="stats" id="noff" style="margin-top:8px"></div>
+    <div class="stats" style="margin-top:4px">шаг 0,3 мм, с <kbd>Shift</kbd> 1,5 мм</div>
+  </div>
+</div>
+
+<div class="card stats" style="margin-bottom:16px">
+  <kbd>←</kbd> <kbd>→</kbd> предыдущая/следующая дата · <kbd>пробел</kbd> проиграть ·
+  колесо мыши над картинкой листает срез · клик ставит остальные срезы в эту точку · двойной клик разворачивает вид ·
+  <kbd>P</kbd> в «Панораме» переключает КТ / рентген-снимок
+</div>
+
+<div id="loading"><span id="ltext">Загрузка…</span><div class="bar"><div id="lbar"></div></div></div>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+let META, NX, NY, NZ, NXY, N, SP, L, AX, AY, ANX, ANY;
+let TL = [];          // timeline: CT scans by date
+let PE = [];          // panoramic X-ray photos (shown via the panorama card's switch)
+let ND = [];          // everything that can be nudged: TL + PE
+const VOLS = [];      // per CT scan
+const PH = [];        // per photo: { img, gray: Map }
+const cache = new Map();
+const CACHE_MAX = 90;
+
+const PANELS = {
+  axial:    { title: "Сверху", hint: "аксиальная, слой по высоте", posLabel: "Высота" },
+  coronal:  { title: "Спереди", hint: "фронтальная", posLabel: "Глубина" },
+  sagittal: { title: "Сбоку", hint: "сагиттальная", posLabel: "Сторона" },
+  pano:     { title: "Панорама", hint: "развёртка по дуге зубов", posLabel: "Сдвиг", wide: true },
+};
+
+const st = {
+  t: 0, mode: "blend", a: 0, b: 1, proj: "mip", lo: 40, hi: 230, lines: true,
+  panels: {}, offs: {}, nd: 0, max: null, pano: -1,  // pano: -1 = CT, else photo index
+};
+
+// ---------------------------------------------------------------- persistence (best effort)
+const LS_KEY = "teeth-viewer-v1";
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      built: META.built, t: st.t, mode: st.mode, a: st.a, b: st.b, proj: st.proj, lo: st.lo, hi: st.hi,
+      lines: st.lines, panels: st.panels, offs: st.offs, pano: st.pano,
+    }));
+  } catch (e) {}
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (!s) return;
+    Object.assign(st, { t: s.t, mode: s.mode, a: s.a, b: s.b, proj: s.proj, lo: s.lo, hi: s.hi, lines: s.lines, offs: s.offs || {},
+      pano: s.pano ?? -1 });
+    if (s.built === META.built && s.panels) st.panels = s.panels;  // view positions only valid for the same build
+  } catch (e) {}
+}
+
+// ---------------------------------------------------------------- geometry per panel
+function geom(name) {
+  switch (name) {
+    case "axial":    return { w: NX, h: NY, pmin: 0, pmax: NZ - 1, tmax: NZ };
+    case "coronal":  return { w: NX, h: NZ, pmin: 0, pmax: NY - 1, tmax: NY };
+    case "sagittal": return { w: NY, h: NZ, pmin: 0, pmax: NX - 1, tmax: NX };
+    case "pano":     return { w: L,  h: NZ, pmin: -Math.round(25 / SP), pmax: Math.round(25 / SP), tmax: Math.round(40 / SP) };
+  }
+}
+function slab(name) {
+  const g = geom(name), p = st.panels[name];
+  const t = clamp(p.thick, 1, g.tmax);
+  let a = p.pos - Math.floor((t - 1) / 2), b = a + t - 1;
+  if (name !== "pano") { a = clamp(a, 0, g.pmax); b = clamp(b, 0, g.pmax); }
+  return [a, b];
+}
+const off = (d) => st.offs[META.dates[d].id] || [0, 0, 0];
+const scaleOf = (name) => (name === "pano" ? 3 : 2);
+
+const frameOf = (name, k) => ({ k, ct: TL[k].ct });
+const sameFrame = (a, b) => a.photo === b.photo && a.ct === b.ct;
+const frameLabel = (name, fr) => (fr.photo !== undefined ? `${PE[fr.photo].label} · рентген-снимок` : META.dates[fr.ct].label);
+
+// ---------------------------------------------------------------- rendering: one panel of one scan
+function render(name, d) {
+  const V = VOLS[d];
+  if (!V) return null;
+  const [a, b] = slab(name), o = off(d), avg = st.proj === "avg";
+  const g = geom(name), out = new Float32Array(g.w * g.h);
+  const x0 = Math.max(0, o[0]), x1 = Math.min(NX, NX + o[0]);
+  if (name === "axial") {
+    let cnt = 0;
+    for (let z = a; z <= b; z++) {
+      const sz = z - o[2]; if (sz < 0 || sz >= NZ) continue; cnt++;
+      for (let y = 0; y < NY; y++) {
+        const sy = y - o[1]; if (sy < 0 || sy >= NY) continue;
+        const rb = sz * NXY + sy * NX - o[0], ob = y * NX;
+        if (avg) for (let x = x0; x < x1; x++) out[ob + x] += V[rb + x];
+        else for (let x = x0; x < x1; x++) { const v = V[rb + x]; if (v > out[ob + x]) out[ob + x] = v; }
+      }
+    }
+    if (avg && cnt) for (let i = 0; i < out.length; i++) out[i] /= cnt;
+  } else if (name === "coronal") {
+    let cnt = 0;
+    for (let y = a; y <= b; y++) {
+      const sy = y - o[1]; if (sy < 0 || sy >= NY) continue; cnt++;
+      for (let z = 0; z < NZ; z++) {
+        const sz = z - o[2]; if (sz < 0 || sz >= NZ) continue;
+        const rb = sz * NXY + sy * NX - o[0], ob = (NZ - 1 - z) * NX;
+        if (avg) for (let x = x0; x < x1; x++) out[ob + x] += V[rb + x];
+        else for (let x = x0; x < x1; x++) { const v = V[rb + x]; if (v > out[ob + x]) out[ob + x] = v; }
+      }
+    }
+    if (avg && cnt) for (let i = 0; i < out.length; i++) out[i] /= cnt;
+  } else if (name === "sagittal") {
+    let cnt = 0;
+    const y0 = Math.max(0, o[1]), y1 = Math.min(NY, NY + o[1]);
+    for (let x = a; x <= b; x++) {
+      const sx = x - o[0]; if (sx < 0 || sx >= NX) continue; cnt++;
+      for (let z = 0; z < NZ; z++) {
+        const sz = z - o[2]; if (sz < 0 || sz >= NZ) continue;
+        const rb = sz * NXY + sx - o[1] * NX, ob = (NZ - 1 - z) * NY;
+        if (avg) for (let y = y0; y < y1; y++) out[ob + y] += V[rb + y * NX];
+        else for (let y = y0; y < y1; y++) { const v = V[rb + y * NX]; if (v > out[ob + y]) out[ob + y] = v; }
+      }
+    }
+    if (avg && cnt) for (let i = 0; i < out.length; i++) out[i] /= cnt;
+  } else {
+    const cnt = new Uint16Array(L);
+    for (let u = 0; u < L; u++) {
+      for (let s = a; s <= b; s++) {
+        const x = Math.round(AX[u] + ANX[u] * s) - o[0], y = Math.round(AY[u] + ANY[u] * s) - o[1];
+        if (x < 0 || x >= NX || y < 0 || y >= NY) continue;
+        cnt[u]++;
+        const base = y * NX + x;
+        for (let z = 0; z < NZ; z++) {
+          const sz = z - o[2]; if (sz < 0 || sz >= NZ) continue;
+          const v = V[sz * NXY + base], k = (NZ - 1 - z) * L + u;
+          if (avg) out[k] += v; else if (v > out[k]) out[k] = v;
+        }
+      }
+    }
+    if (avg) for (let i = 0; i < out.length; i++) { const c = cnt[i % L]; if (c) out[i] /= c; }
+  }
+  return new Uint8ClampedArray(out);
+}
+
+function img(name, d) {
+  const p = st.panels[name];
+  const key = [name, d, p.pos, p.thick, st.proj, off(d).join(",")].join("|");
+  let r = cache.get(key);
+  if (r) { cache.delete(key); cache.set(key, r); return r; }
+  r = render(name, d);
+  if (!r) return null;
+  cache.set(key, r);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+  return r;
+}
+
+// ---------------------------------------------------------------- drawing
+const off2d = {};
+function lut() {
+  const l = new Uint8ClampedArray(256), lo = Math.min(st.lo, st.hi - 1), hi = st.hi;
+  for (let i = 0; i < 256; i++) l[i] = (i - lo) * 255 / (hi - lo);
+  return l;
+}
+function scratch(slot, w, h) {
+  let oc = off2d[slot];
+  if (!oc || oc.width !== w || oc.height !== h) { oc = off2d[slot] = document.createElement("canvas"); oc.width = w; oc.height = h; }
+  return oc;
+}
+function greyCanvas(slot, w, h, G) {
+  const oc = scratch(slot, w, h), octx = oc.getContext("2d"), id = octx.createImageData(w, h), px = id.data;
+  for (let k = 0, q = 0; k < G.length; k++, q += 4) { px[q] = px[q + 1] = px[q + 2] = G[k]; px[q + 3] = 255; }
+  octx.putImageData(id, 0, 0);
+  return oc;
+}
+const photoOff = (fr) => st.offs[PE[fr.photo].id] || [0, 0, 0];
+
+// photo sampled onto the panorama grid (for the colour comparison)
+function photoGrey(fr) {
+  const P = PH[fr.photo];
+  if (!P) return null;
+  const o = photoOff(fr), key = o.join(",");
+  if (!P.gray.has(key)) {
+    const oc = scratch("pg", L, NZ), c = oc.getContext("2d");
+    c.fillStyle = "#000"; c.fillRect(0, 0, L, NZ);
+    c.imageSmoothingQuality = "high";
+    c.drawImage(P.img, o[0], -o[2], L, NZ);
+    const d = c.getImageData(0, 0, L, NZ).data, g = new Uint8ClampedArray(L * NZ);
+    for (let k = 0; k < g.length; k++) g[k] = d[k * 4];
+    P.gray.set(key, g);
+  }
+  return P.gray.get(key);
+}
+function greyOf(name, fr, T) {
+  if (fr.photo !== undefined) return photoGrey(fr);
+  const A = img(name, fr.ct);
+  if (!A) return null;
+  const G = new Uint8ClampedArray(A.length);
+  for (let k = 0; k < A.length; k++) G[k] = T[A[k]];
+  return G;
+}
+// paint one timeline frame onto the panel canvas (photos at their full resolution)
+function paint(ctx, name, fr, slot, alpha, T) {
+  const g = geom(name), cv = ctx.canvas;
+  ctx.globalAlpha = alpha;
+  if (fr.photo !== undefined) {
+    const P = PH[fr.photo];
+    if (!P) return false;
+    const o = photoOff(fr), S = cv.width / g.w;
+    ctx.drawImage(P.img, o[0] * S, -o[2] * S, cv.width, cv.height);
+  } else {
+    const G = greyOf(name, fr, T);
+    if (!G) return false;
+    ctx.drawImage(greyCanvas(slot, g.w, g.h, G), 0, 0, cv.width, cv.height);
+  }
+  ctx.globalAlpha = 1;
+  return true;
+}
+
+function draw(name) {
+  const el = PANELS[name].el, g = geom(name), S = scaleOf(name);
+  const cv = $("canvas", el), ctx = cv.getContext("2d");
+  if (cv.width !== g.w * S || cv.height !== g.h * S) { cv.width = g.w * S; cv.height = g.h * S; }
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  const T = lut();
+  let label = "";
+  if (name === "pano" && st.pano >= 0) {
+    const fr = { photo: st.pano };
+    if (!paint(ctx, name, fr, "a", 1, T)) return;
+    label = frameLabel(name, fr);
+  } else if (st.mode === "blend") {
+    const i = Math.floor(st.t + 1e-6), f = st.t - i, j = Math.min(i + 1, N - 1);
+    const fi = frameOf(name, i), fj = frameOf(name, j), mix = f > 0.005 && !sameFrame(fi, fj);
+    if (!paint(ctx, name, fi, "a", 1, T)) return;
+    if (mix && !paint(ctx, name, fj, "b", f, T)) return;
+    label = mix ? `${frameLabel(name, fi)} → ${frameLabel(name, fj)}` : frameLabel(name, fi);
+  } else {
+    const fa = frameOf(name, st.a), fb = frameOf(name, st.b);
+    const A = greyOf(name, fa, T), B = greyOf(name, fb, T);
+    if (!A || !B) return;
+    const oc = scratch("cmp", g.w, g.h), octx = oc.getContext("2d"), id = octx.createImageData(g.w, g.h), px = id.data;
+    for (let k = 0, q = 0; k < A.length; k++, q += 4) { px[q] = A[k]; px[q + 1] = B[k]; px[q + 2] = A[k]; px[q + 3] = 255; }
+    octx.putImageData(id, 0, 0);
+    ctx.drawImage(oc, 0, 0, cv.width, cv.height);
+    label = `${frameLabel(name, fa)} / ${frameLabel(name, fb)}`;
+  }
+  $(".o.date", el).textContent = label;
+  if (st.lines) overlays(name, ctx, S);
+  scaleBar(ctx, cv, S);
+}
+
+function band(ctx, S, color, vertical, a, b, w, h) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  const A = a * S, B = (b + 1) * S;
+  ctx.globalAlpha = 0.08;
+  if (vertical) ctx.fillRect(A, 0, B - A, h); else ctx.fillRect(0, A, w, B - A);
+  ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.setLineDash(b - a > 2 ? [4, 4] : []);
+  ctx.beginPath();
+  for (const v of (b - a > 2 ? [A, B] : [(A + B) / 2])) {
+    if (vertical) { ctx.moveTo(v + .5, 0); ctx.lineTo(v + .5, h); } else { ctx.moveTo(0, v + .5); ctx.lineTo(w, v + .5); }
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+const full = (n) => { const g = geom(n); return st.panels[n].thick >= g.tmax * 0.6; };
+
+function overlays(name, ctx, S) {
+  const w = ctx.canvas.width, h = ctx.canvas.height, c = (n) => getComputedStyle(document.body).getPropertyValue("--c-" + n);
+  const flip = ([a, b]) => [NZ - 1 - b, NZ - 1 - a];
+  if (name === "axial") {
+    if (!full("coronal")) band(ctx, S, c("coronal"), false, ...slab("coronal"), w, h);
+    if (!full("sagittal")) band(ctx, S, c("sagittal"), true, ...slab("sagittal"), w, h);
+    const [a, b] = slab("pano");
+    ctx.save(); ctx.strokeStyle = c("pano"); ctx.lineWidth = 1;
+    for (const [s, alpha, dash] of [[(a + b) / 2, 0.8, []], [a, 0.45, [3, 4]], [b, 0.45, [3, 4]]]) {
+      ctx.globalAlpha = alpha; ctx.setLineDash(dash); ctx.beginPath();
+      for (let u = 0; u < L; u += 3) {
+        const X = (AX[u] + ANX[u] * s + .5) * S, Y = (AY[u] + ANY[u] * s + .5) * S;
+        u ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (name === "coronal") {
+    band(ctx, S, c("axial"), false, ...flip(slab("axial")), w, h);
+    if (!full("sagittal")) band(ctx, S, c("sagittal"), true, ...slab("sagittal"), w, h);
+  } else if (name === "sagittal") {
+    band(ctx, S, c("axial"), false, ...flip(slab("axial")), w, h);
+    if (!full("coronal")) band(ctx, S, c("coronal"), true, ...slab("coronal"), w, h);
+  } else {
+    band(ctx, S, c("axial"), false, ...flip(slab("axial")), w, h);
+  }
+}
+
+function scaleBar(ctx, cv, S) {
+  const px = 10 / SP * S, x = cv.width - px - 12, y = cv.height - 12;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + px, y); ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.font = `${11 * S / 1.4}px ui-monospace, Menlo, monospace`;
+  ctx.textAlign = "center"; ctx.fillText("10 мм", x + px / 2, y - 6);
+  ctx.restore();
+}
+
+let pending = null;
+function redraw(names) {
+  const set = pending || new Set();
+  (names || Object.keys(PANELS)).forEach((n) => set.add(n));
+  if (pending) return;
+  pending = set;
+  requestAnimationFrame(() => {
+    const s = pending; pending = null;
+    for (const n of s) draw(n);
+    syncTexts();
+  });
+}
+
+// ---------------------------------------------------------------- UI
+function buildPanels() {
+  const grid = $("#grid");
+  for (const [name, P] of Object.entries(PANELS)) {
+    const el = document.createElement("section");
+    el.className = "panel" + (P.wide ? " wide" : "");
+    el.innerHTML = `
+      <div class="ph"><h2><i style="background:var(--c-${name})"></i>${P.title}</h2><span class="hint">${P.hint}</span>
+        <span class="grow"></span><button class="ico" title="Развернуть / свернуть">⤢</button></div>
+      <div class="cv"><canvas></canvas><span class="o date"></span>
+        <span class="o l"></span><span class="o r"></span><span class="o t"></span><span class="o b"></span></div>
+      <div class="ctl">
+        <span>${P.posLabel}</span><input type="range" class="pos"><output class="pv"></output>
+        <span>Толщина</span><input type="range" class="thick"><output class="tv"></output>
+      </div>`;
+    grid.appendChild(el);
+    P.el = el;
+    if (name === "pano" && PE.length) {
+      const seg = document.createElement("span");
+      seg.className = "seg sm"; seg.id = "panoSrc"; seg.title = "Переключить КТ / рентген-снимок (клавиша P)";
+      seg.innerHTML = `<button data-v="-1">КТ</button>` +
+        PE.map((p, i) => `<button data-v="${i}">Снимок ${p.label}</button>`).join("");
+      seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => setPano(+b.dataset.v)));
+      $(".ph .hint", el).after(seg);
+      const p = META.photos[PE.length - 1], a = document.createElement("a");
+      a.className = "ext"; a.href = p.original; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "снимок целиком ↗";
+      $(".ph .grow", el).after(a);
+    }
+    const lab = { axial: ["П", "Л", "перед", "зад"], coronal: ["П", "Л", "верх", "низ"], sagittal: ["перед", "зад", "верх", "низ"], pano: ["П", "Л", "верх", "низ"] }[name];
+    [".o.l", ".o.r", ".o.t", ".o.b"].forEach((s, i) => { $(s, el).textContent = lab[i]; });
+    $(".o.t", el).style.transform = $(".o.b", el).style.transform = "translateX(-50%)";
+    if (name === "axial" || name === "coronal" || name === "pano") { $(".o.t", el).style.left = "50%"; }
+    const g = geom(name), pos = $(".pos", el), th = $(".thick", el);
+    pos.min = g.pmin; pos.max = g.pmax; th.min = 1; th.max = g.tmax;
+    pos.addEventListener("input", () => { st.panels[name].pos = +pos.value; changed(); });
+    th.addEventListener("input", () => { st.panels[name].thick = +th.value; changed(); });
+    $(".ico", el).addEventListener("click", () => toggleMax(name));
+    const cv = $("canvas", el);
+    cv.addEventListener("dblclick", () => toggleMax(name));
+    cv.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const p = st.panels[name];
+      p.pos = clamp(p.pos + Math.sign(e.deltaY) * (e.shiftKey ? 5 : 1), g.pmin, g.pmax);
+      changed();
+    }, { passive: false });
+    cv.addEventListener("click", (e) => {
+      const r = cv.getBoundingClientRect();
+      const u = Math.floor((e.clientX - r.left) / r.width * g.w), v = Math.floor((e.clientY - r.top) / r.height * g.h);
+      pick(name, clamp(u, 0, g.w - 1), clamp(v, 0, g.h - 1));
+    });
+  }
+}
+
+function thin(n) { const p = st.panels[n]; p.thick = Math.min(p.thick, Math.round(10 / SP)); }
+function pick(name, u, v) {
+  const P = st.panels;
+  if (name === "axial") { P.sagittal.pos = u; P.coronal.pos = v; thin("sagittal"); thin("coronal"); }
+  else if (name === "coronal") { P.axial.pos = NZ - 1 - v; P.sagittal.pos = u; thin("sagittal"); }
+  else if (name === "sagittal") { P.axial.pos = NZ - 1 - v; P.coronal.pos = u; thin("coronal"); }
+  else { P.axial.pos = NZ - 1 - v; P.sagittal.pos = Math.round(AX[u]); P.coronal.pos = Math.round(AY[u]); thin("sagittal"); thin("coronal"); }
+  changed();
+}
+
+function toggleMax(name) {
+  const was = st.max === name;
+  Object.values(PANELS).forEach((P) => P.el.classList.remove("max"));
+  st.max = was ? null : name;
+  if (!was) PANELS[name].el.classList.add("max");
+}
+
+function changed() { syncControls(); redraw(); saveState(); }
+function setPano(v) { st.pano = PE[v] ? v : -1; syncControls(); redraw(["pano"]); saveState(); }
+
+const mm = (v) => (v * SP).toFixed(1).replace(".", ",") + " мм";
+function syncControls() {
+  for (const name of Object.keys(PANELS)) {
+    const el = PANELS[name].el, p = st.panels[name], g = geom(name);
+    p.pos = clamp(p.pos, g.pmin, g.pmax); p.thick = clamp(p.thick, 1, g.tmax);
+    $(".pos", el).value = p.pos; $(".thick", el).value = p.thick;
+    $(".pv", el).textContent = name === "pano" ? (p.pos > 0 ? "+" : "") + mm(p.pos) : mm(p.pos);
+    $(".tv", el).textContent = p.thick >= g.tmax ? "вся" : mm(p.thick);
+  }
+  $("#t").value = st.t;
+  document.querySelectorAll("#mode button").forEach((b) => b.classList.toggle("on", b.dataset.v === st.mode));
+  document.querySelectorAll("#proj button").forEach((b) => b.classList.toggle("on", b.dataset.v === st.proj));
+  $("#cmp").hidden = st.mode !== "compare";
+  $("#ca").value = st.a; $("#cb").value = st.b;
+  $("#lo").value = st.lo; $("#hi").value = st.hi; $("#lines").checked = st.lines;
+  document.querySelectorAll("#panoSrc button").forEach((b) => b.classList.toggle("on", +b.dataset.v === st.pano));
+  $(".ctl", PANELS.pano.el).classList.toggle("off", st.pano >= 0);
+  $("#nd").value = st.nd;
+  const e = ND[st.nd], o = st.offs[e.id] || [0, 0, 0], f = (v) => (v * SP).toFixed(1).replace(".", ",");
+  $("#noff").textContent = e.kind === "photo"
+    ? `Ручной сдвиг снимка ${e.label} (только панорама): влево ${f(o[0])} · вверх ${f(o[2])} мм`
+    : `Ручной сдвиг ${e.label}: влево ${f(o[0])} · назад ${f(o[1])} · вверх ${f(o[2])} мм`;
+}
+
+function syncTexts() {
+  const i = Math.floor(st.t + 1e-6), f = st.t - i, d = TL;
+  document.querySelectorAll("#ticks button").forEach((b, k) =>
+    b.classList.toggle("on", st.mode === "blend" ? (k === i && f < 0.005) || (f >= 0.005 && (k === i || k === i + 1)) : k === st.a || k === st.b));
+  let s;
+  if (st.mode === "compare") s = `<b>${d[st.a].label}</b> (фиолетовый) и <b>${d[st.b].label}</b> (зелёный) · между ними ${months(d[st.b].months - d[st.a].months)}`;
+  else if (f < 0.005) s = `КТ ${i + 1} из ${N} · <b>${d[i].label}</b> · ${i ? months(d[i].months) + " от первого" : "первый скан"}`;
+  else s = `<b>${d[i].label}</b> → <b>${d[i + 1].label}</b> · ${Math.round(f * 100)}%`;
+  if (st.pano >= 0) s += ` · в «Панораме» сейчас рентген ${PE[st.pano].label}`;
+  $("#now").innerHTML = s;
+}
+function months(m) {
+  m = Math.abs(m);
+  if (m >= 12) { const y = Math.floor(m / 12), r = Math.round(m - y * 12); return `${y} г.` + (r ? ` ${r} мес.` : ""); }
+  return `${Math.round(m)} мес.`;
+}
+
+function setT(t) { st.t = clamp(t, 0, N - 1); $("#t").value = st.t; redraw(); }
+
+let playing = false, last = 0, dir = 1, hold = 0;
+function tick(ts) {
+  if (!playing) return;
+  const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
+  if (hold > 0) hold -= dt;
+  else {
+    const before = st.t;
+    let t = st.t + dir * dt * 0.7;
+    if (Math.floor(t) !== Math.floor(before) && dir > 0 || Math.ceil(t) !== Math.ceil(before) && dir < 0) {
+      t = dir > 0 ? Math.floor(t) : Math.ceil(t); hold = 0.6;  // pause on each real scan
+    }
+    if (t >= N - 1) { t = N - 1; dir = -1; hold = 1.2; }
+    if (t <= 0) { t = 0; dir = 1; hold = 1.2; }
+    setT(t);
+  }
+  requestAnimationFrame(tick);
+}
+function togglePlay(on = !playing) {
+  playing = on; $("#play").textContent = on ? "❚❚" : "▶";
+  if (on) { if (st.mode !== "blend") { st.mode = "blend"; syncControls(); } last = 0; requestAnimationFrame(tick); } else saveState();
+}
+
+function wire() {
+  const d = TL;
+  const ticks = $("#ticks");
+  d.forEach((x, k) => {
+    const b = document.createElement("button");
+    b.textContent = x.label;
+    b.style.left = (N > 1 ? k / (N - 1) * 100 : 0) + "%";
+    b.addEventListener("click", () => {
+      if (st.mode === "compare") { st.b = k; changed(); } else { togglePlay(false); setT(k); saveState(); }
+    });
+    ticks.appendChild(b);
+    for (const sel of ["#ca", "#cb"]) $(sel).add(new Option(x.label, k));
+  });
+  ND.forEach((x, k) => $("#nd").add(new Option(x.kind === "photo" ? `${x.label} (рентген)` : x.label, k)));
+  $("#t").max = N - 1;
+  $("#t").addEventListener("input", (e) => { togglePlay(false); setT(+e.target.value); });
+  $("#t").addEventListener("change", saveState);
+  $("#play").addEventListener("click", () => togglePlay());
+  document.querySelectorAll("#mode button").forEach((b) => b.addEventListener("click", () => { st.mode = b.dataset.v; if (st.mode === "compare") togglePlay(false); changed(); }));
+  document.querySelectorAll("#proj button").forEach((b) => b.addEventListener("click", () => { st.proj = b.dataset.v; changed(); }));
+  const toU8 = (hu) => Math.round((hu - META.window_hu[0]) * 255 / (META.window_hu[1] - META.window_hu[0]));
+  const presets = { teeth: [toU8(700), toU8(3200)], bone: [toU8(-100), toU8(2200)], all: [0, 255] };
+  document.querySelectorAll("#preset button").forEach((b) => b.addEventListener("click", () => { [st.lo, st.hi] = presets[b.dataset.v]; changed(); }));
+  $("#lo").addEventListener("input", (e) => { st.lo = Math.min(+e.target.value, st.hi - 1); changed(); });
+  $("#hi").addEventListener("input", (e) => { st.hi = Math.max(+e.target.value, st.lo + 1); changed(); });
+  $("#lines").addEventListener("change", (e) => { st.lines = e.target.checked; changed(); });
+  $("#ca").addEventListener("change", (e) => { st.a = +e.target.value; changed(); });
+  $("#cb").addEventListener("change", (e) => { st.b = +e.target.value; changed(); });
+  $("#nd").addEventListener("change", (e) => { st.nd = +e.target.value; syncControls(); });
+  $("#reset").addEventListener("click", () => { st.panels = JSON.parse(JSON.stringify(META.defaults)); changed(); });
+  document.querySelectorAll(".nudge button").forEach((b) => b.addEventListener("click", (e) => {
+    const id = ND[st.nd].id, k = e.shiftKey ? 5 : 1, dv = b.dataset.d.split(",").map(Number);
+    if (ND[st.nd].kind === "photo") dv[1] = 0;  // a flat photo has no depth
+    const o = (st.offs[id] || [0, 0, 0]).map((v, i) => v + dv[i] * k);
+    st.offs[id] = o; changed();
+  }));
+  $("#nreset").addEventListener("click", () => { delete st.offs[ND[st.nd].id]; changed(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, select, textarea")) return;
+    if (e.key === "ArrowRight") { togglePlay(false); setT(Math.floor(st.t + 1e-6) + 1); saveState(); e.preventDefault(); }
+    else if (e.key === "ArrowLeft") { togglePlay(false); setT(Math.ceil(st.t - 1e-6) - 1); saveState(); e.preventDefault(); }
+    else if (e.key === " ") { togglePlay(); e.preventDefault(); }
+    else if ((e.key === "p" || e.key === "з") && PE.length) setPano(st.pano >= 0 ? -1 : PE.length - 1);
+  });
+
+  const rows = META.dates.map((x) => {
+    const sh = Math.hypot(...x.shift_mm).toFixed(1).replace(".", ","), rt = Math.max(...x.rot_deg.map(Math.abs)).toFixed(1).replace(".", ",");
+    return x.id === META.ref ? `<tr><td>${x.label}</td><td>опорный скан</td><td></td></tr>`
+      : `<tr><td>${x.label}</td><td>авто-совмещение: сдвиг ${sh} мм, поворот до ${rt}°</td>` +
+        `<td>совпадение кости ${x.match_before.toFixed(2)} → ${x.match_after.toFixed(2)}</td></tr>`;
+  });
+  for (const p of META.photos || [])
+    rows.push(`<tr><td>${p.label}</td><td>рентген-снимок: подогнан к КТ-панораме по кости и импланту</td><td>переключатель в «Панораме»</td></tr>`);
+  $("#stats").innerHTML = rows.join("");
+}
+
+// ---------------------------------------------------------------- loading
+async function fetchVol(url, onProgress) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(url + ": " + r.status);
+  const total = +r.headers.get("content-length") || 0;
+  let got = 0;
+  const counter = new TransformStream({ transform(chunk, c) { got += chunk.byteLength; onProgress(got, total); c.enqueue(chunk); } });
+  const buf = new Uint8Array(await new Response(r.body.pipeThrough(counter)).arrayBuffer());
+  // some static hosts already undo the gzip for us; only inflate when the gzip magic is still there
+  if (buf[0] !== 0x1f || buf[1] !== 0x8b) return buf;
+  return new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+}
+
+async function main() {
+  if (typeof DecompressionStream === "undefined") { $("#ltext").textContent = "Браузер слишком старый: нужен DecompressionStream"; return; }
+  META = await (await fetch("data/meta.json")).json();
+  [NX, NY, NZ] = META.dims; NXY = NX * NY; SP = META.spacing;
+  ({ x: AX, y: AY, nx: ANX, ny: ANY } = META.arch); L = AX.length;
+  const photos = META.photos || [];
+  TL = META.dates.map((d, i) => ({ kind: "ct", id: d.id, label: d.label, months: d.months, ct: i }));
+  PE = photos.map((p, i) => ({ kind: "photo", id: p.id, label: p.label, months: p.months, photo: i }));
+  ND = [...TL, ...PE];
+  N = TL.length;
+  st.b = N - 1;
+  st.panels = JSON.parse(JSON.stringify(META.defaults));
+  loadState();
+  st.t = clamp(st.t, 0, N - 1); st.a = clamp(st.a, 0, N - 1); st.b = clamp(st.b, 0, N - 1); st.nd = clamp(st.nd, 0, ND.length - 1);
+  if (!PE[st.pano]) st.pano = -1;
+  const nct = META.dates.length;
+  $("#sub").textContent = `${nct} КТ · ${TL[0].label} — ${TL[N - 1].label} · якорь: нижняя челюсть` +
+    (photos.length ? ` · в «Панораме» можно переключиться на рентген ${photos.map((p) => p.label).join(", ")}` : "");
+  buildPanels(); wire(); syncControls(); redraw();
+
+  const total = nct + photos.length;
+  for (let k = 0; k < nct; k++) {
+    const set = (got, size) => {
+      $("#ltext").textContent = `Загрузка КТ ${k + 1} из ${nct} (${META.dates[k].label})…`;
+      $("#lbar").style.width = ((k + (size ? got / size : 0)) / total * 100) + "%";
+    };
+    set(0, 0);
+    try { VOLS[k] = await fetchVol(META.dates[k].file, set); }
+    catch (e) { $("#ltext").textContent = "Ошибка загрузки: " + e.message; return; }
+    redraw();
+  }
+  for (let k = 0; k < photos.length; k++) {
+    $("#ltext").textContent = `Загрузка снимка ${photos[k].label}…`;
+    const im = new Image();
+    im.src = photos[k].file;
+    try { await im.decode(); } catch (e) { $("#ltext").textContent = "Ошибка загрузки снимка"; return; }
+    PH[k] = { img: im, gray: new Map() };
+    $("#lbar").style.width = ((nct + k + 1) / total * 100) + "%";
+    redraw();
+  }
+  $("#loading").remove();
+}
+main().catch((e) => { $("#ltext").textContent = "Ошибка: " + e.message; console.error(e); });
+</script>
+</body>
+</html>
